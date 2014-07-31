@@ -6,22 +6,8 @@ import Data.Maybe (listToMaybe)
 import Data.Text (append, unpack, Text)
 import GHC.Generics
 import Network.HTTP.Conduit
-import System.Process (runCommand)
+import OAuth.Twitter
 import Web.Authenticate.OAuth
-
-myConsumerKey :: ByteString
-myConsumerKey = "Insert key here"
-myConsumerSecret :: ByteString
-myConsumerSecret = "Insert secret here"
-
-myOAuth :: OAuth
-myOAuth = newOAuth { oauthServerName     = "api.twitter.com"
-                   , oauthConsumerKey    = myConsumerKey
-                   , oauthConsumerSecret = myConsumerSecret
-                   , oauthRequestUri = "https://api.twitter.com/oauth/request_token"
-                   , oauthAccessTokenUri = "https://api.twitter.com/oauth/access_token"
-                   , oauthAuthorizeUri = "https://api.twitter.com/oauth/authorize"
-                   }
 
 -- Information we want about the user that is tweeting the message
 data User = User { screen_name :: !Text
@@ -37,25 +23,6 @@ instance FromJSON User
 instance ToJSON User
 instance FromJSON Tweet
 instance ToJSON Tweet
-
--- getOAuthRequestToken -- gives requestTokenResponse
-getOAuthRequestToken :: IO Credential
-getOAuthRequestToken = withManager $ \m -> getTemporaryCredential myOAuth m
-
--- authorizeUser -- uses requestTokenResponse, gives oauthVerifier
-authorizeUser :: Credential -> IO String
-authorizeUser tempCredential = do
-    let url = authorizeUrl myOAuth tempCredential
-        browser = "/Applications/Google\\ Chrome.app/Contents/MacOS/Google\\ Chrome "
-    runCommand $ browser ++ "\"" ++ url ++ "\"" -- To escape the "&"
-    putStr "Authorize the app and insert the code: "
-    getLine
-
--- getOAuthAccessToken -- uses requestTokenResponse and oauthVerifier, gives token
-getOAuthAccessToken :: Credential -> String -> IO Credential
-getOAuthAccessToken tempCredential pinCode = do
-    let verifiedCred = injectVerifier (pack pinCode) tempCredential
-    withManager $ \m -> getAccessToken myOAuth verifiedCred m
 
 mentions :: Credential -> IO (Either String [Tweet])
 mentions credential = do
@@ -84,10 +51,7 @@ tweet credential message = do
 
 main :: IO ()
 main = do
-    -- Login:
-    reqToken <- getOAuthRequestToken
-    pinCode <- authorizeUser reqToken
-    accessToken <- getOAuthAccessToken reqToken pinCode
+    accessToken <- login
 
     eMentions <- mentions accessToken
     -- If Left, print the error. If Right, print the wanted information on screen
