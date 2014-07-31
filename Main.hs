@@ -57,11 +57,11 @@ getOAuthAccessToken tempCredential pinCode = do
     let verifiedCred = injectVerifier (pack pinCode) tempCredential
     withManager $ \m -> getAccessToken myOAuth verifiedCred m
 
-mentions :: Credential -> String -> IO (Either String [Tweet])
-mentions credential name = do
+mentions :: Credential -> IO (Either String [Tweet])
+mentions credential = do
     request <- parseUrl $
         "https://api.twitter.com/1.1/statuses/mentions_timeline.json?" ++
-                 "screen_name=" ++ name ++ "&contributor_details=true"
+                 "contributor_details=true"
     response <- withManager $ \m -> do
         -- OAuth authentication
         signedRequest <- signOAuth myOAuth credential request
@@ -89,7 +89,7 @@ main = do
     pinCode <- authorizeUser reqToken
     accessToken <- getOAuthAccessToken reqToken pinCode
 
-    eMentions <- mentions accessToken "mccain"
+    eMentions <- mentions accessToken
     -- If Left, print the error. If Right, print the wanted information on screen
     case eMentions of
          Left err -> do
