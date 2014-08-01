@@ -3,7 +3,7 @@
 import Data.Aeson
 import Data.ByteString.Char8 (ByteString, pack)
 import Data.Maybe (listToMaybe)
-import Data.Text (append, unpack, Text)
+import Data.Text (unpack, Text)
 import GHC.Generics
 import Network.HTTP.Conduit
 import OAuth.Twitter
@@ -49,6 +49,25 @@ tweet credential message = do
         httpLbs signedRequest m
     return $ eitherDecode $ responseBody response
 
+replyTweet :: Credential
+           -> Int    -- Status ID that the reply is directed to
+           -> String -- User name of the person that the reply is directed to
+           -> String -- Message to send as a reply
+           -> IO (Either String Tweet)
+replyTweet credential statusID username message = do
+    request <- parseUrl "https://api.twitter.com/1.1/statuses/update.json"
+    let update = pack $ '@' : username ++ " " ++ message
+        postData = [ ("status", update)
+                   , ("in_reply_to_status_id", pack $ show statusID)
+                   ] :: [(ByteString, ByteString)]
+        request' = urlEncodedBody postData request
+    response <- withManager $ \m -> do
+        -- OAuth authentication
+        signedRequest <- signOAuth myOAuth credential request'
+        -- Send request
+        httpLbs signedRequest m
+    return $ eitherDecode $ responseBody response
+
 main :: IO ()
 main = do
     accessToken <- login
@@ -60,17 +79,15 @@ main = do
              putStrLn "There was an error when getting the mentions"
              putStrLn err
          Right m  -> do
-             putStr "Latest tweet was by "
-             let mLatest = listToMaybe m
-                 mUser = maybe "no one?!" ((`append` "!") . screen_name . user) mLatest
-             putStrLn $ unpack mUser
-             -- eTweet <- tweet accessToken "This is a test! Sorry for the spamming! :D"
-             -- case eTweet of
-             --      Left err -> do
-             --          putStrLn "There was an error when tweeting:"
-             --          putStrLn err
-             --      Right t -> do
-             --          putStrLn "Sending tweet..."
-             --          print t
+             let mLatest = listToMaybe m -- Last person to mention the user
+             case mLatest of
+                  Nothing -> putStrLn "No one has mentioned me!"
+                  Just tweetInfo -> do
+                      let username = (unpack . screen_name . user) tweetInfo
+                          tweetID = Main.id tweetInfo
+                          msg = "this is my autoreply!"
+                      putStrLn $ "Sending a reply to " ++ username ++ "!"
+                      eReply <- replyTweet accessToken tweetID username msg
+                      print eReply
 
 {-# ANN module ("HLint: ignore Use camelCase" :: String) #-}
