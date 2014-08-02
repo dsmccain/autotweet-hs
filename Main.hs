@@ -2,6 +2,7 @@ import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Reader (ReaderT, runReaderT)
 import Data.Maybe (listToMaybe)
 import Data.Text (unpack)
+import Data.Time.Clock (getCurrentTime)
 import Twitter.Action
 import Twitter.OAuth
 import Web.Authenticate.OAuth (Credential)
@@ -24,14 +25,21 @@ autorespondToFirstMention = do
                       eTweet <- sendTweet "No one has mentioned me!!"
                       liftIO $ print eTweet
                   Just tweet -> do
+                      currentTime <- liftIO getCurrentTime
                       let username = (unpack . screen_name . user) tweet
                           tweetID = Twitter.Action.id tweet
-                          msg = "oh yeah?!"
+                          msg = "oh yeah? " ++ show currentTime ++ "!"
                       liftIO $ putStrLn $ "Replying to " ++ username ++ "!"
                       eReply <- replyTweet tweetID msg
                       liftIO $ print eReply
 
 main :: IO ()
-main = do
-    accessToken <- login
-    runReaderT autorespondToFirstMention accessToken
+main = login >>= \accessToken -> flip runReaderT accessToken $ do
+    friends <- friendList "McCain"
+    liftIO $ putStrLn "My friend list:"
+    liftIO $ print friends
+    followers <- followerList "McCain"
+    liftIO $ putStrLn "My followers:"
+    liftIO $ print followers
+    liftIO $ putStrLn "Time to tweet!"
+    autorespondToFirstMention

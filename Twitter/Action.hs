@@ -1,6 +1,16 @@
 {-# LANGUAGE OverloadedStrings, DeriveGeneric, FlexibleContexts #-}
 
-module Twitter.Action where
+module Twitter.Action (
+    User(..),
+    Tweet(..),
+    mentions,
+    sendTweet,
+    tweetInfo,
+    replyTweet,
+    friendList,
+    followerList,
+  ) where
+
 import Control.Monad.Catch (MonadThrow)
 import Control.Monad.Reader
 import Control.Monad.Trans.Control (MonadBaseControl)
@@ -14,6 +24,7 @@ import Web.Authenticate.OAuth
 
 -- Information we want about the user that is tweeting the message
 data User = User { screen_name :: !Text
+                 , id_str :: !Text -- text representation of the user's unique id
                  } deriving (Show, Generic)
 
 -- Information about the user's tweet
@@ -80,5 +91,34 @@ replyTweet tweetID message = do
                             ] :: [(ByteString, ByteString)]
              twitterPOSTreq request postData
          _ -> return info
+
+data CursorResponse = CursorResponse { next_cursor :: !Int
+                                     , users :: [User]
+                                     } deriving (Show, Generic)
+
+instance FromJSON CursorResponse
+
+getUserList :: String -- Request string
+            -> Int    -- Current cursor
+            -> [User] -- Accumulated user list
+            -> ReaderT Credential IO (Either String [User])
+getUserList _ 0 userAcc = return $ Right userAcc
+getUserList req cursor userAcc = do
+    let request = req ++ "&cursor=" ++ show cursor
+    cResponse <- twitterGETreq request
+    case cResponse of
+         Right response -> do
+             let cursor' = next_cursor response
+                 receivedUsers = users response
+             getUserList req cursor' (receivedUsers ++ userAcc)
+         Left err -> return $ Left err
+
+friendList :: String -> ReaderT Credential IO (Either String [User])
+friendList name = getUserList request (-1) []
+  where request = "/friends/list.json?screen_name=" ++ name
+
+followerList :: String -> ReaderT Credential IO (Either String [User])
+followerList name = getUserList request (-1) []
+  where request = "/followers/list.json?screen_name=" ++ name
 
 {-# ANN module ("HLint: ignore Use camelCase" :: String) #-}
