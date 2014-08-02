@@ -26,8 +26,7 @@ getOAuthRequestToken = withManager $ \m -> getTemporaryCredential myOAuth m
 authorizeUser :: Credential -> IO String
 authorizeUser tempCredential = do
     let url = authorizeUrl myOAuth tempCredential
-        browser = "/Applications/Google\\ Chrome.app/Contents/MacOS/Google\\ Chrome "
-    runCommand $ browser ++ "\"" ++ url ++ "\"" -- To escape the '&'s
+    runCommand $ "open \"" ++ url ++ "\"" -- To escape the '&'s
     putStr "Authorize the app and insert the code: "
     getLine
 
