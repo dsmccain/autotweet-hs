@@ -9,7 +9,7 @@ import Data.Maybe (listToMaybe)
 import Data.Text (unpack, Text)
 import GHC.Generics
 import Network.HTTP.Conduit
-import OAuth.Twitter
+import Twitter.OAuth
 import Web.Authenticate.OAuth
 
 -- Information we want about the user that is tweeting the message

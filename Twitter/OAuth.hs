@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module OAuth.Twitter (login, myOAuth) where
+module Twitter.OAuth (login, myOAuth) where
 import Data.ByteString.Char8 (ByteString, pack)
 import Network.HTTP.Conduit
 import System.Process (runCommand)
